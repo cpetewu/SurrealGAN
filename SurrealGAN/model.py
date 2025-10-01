@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn.functional as F
+import definitions as Def
 from torch.distributions.kl import kl_divergence
 from collections import OrderedDict
 from torch.autograd import Variable
@@ -90,12 +91,22 @@ class SurrealGAN(object):
 	def create(self, opt):
 
 		self.opt = opt
+        #Read from the architecture json file to construct the network architecture.
 
 		## definition of all netwotks
-		self.netMapping = define_Linear_Mapping(self.opt.nROI,self.opt.npattern)
-		self.netReconstruction = define_Linear_Reconstruction(self.opt.nROI,self.opt.npattern)
-		self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI,self.opt.npattern)
-		self.netDecomposer = define_Linear_Decomposer(self.opt.nROI,self.opt.npattern)
+        #Generator network f(x,z) : X * Z -> Y.
+		self.netMapping = define_Linear_Mapping(self.opt.npattern, self.opt.nROI, self.opt.generator) 
+
+        #Inverse network: Y -> Z
+		self.netReconstruction = define_Linear_Reconstruction(self.opt.npattern, self.opt.nROI, self.opt.inverse)
+        
+        #Descriminates between real and fake data.
+		self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI, self.opt.discriminator)
+
+        #Define Y -> (Z * nROI). Inverse which generates the Z vector for each region.
+		self.netDecomposer = define_Linear_Decomposer(self.opt.npattern, self.opt.nROI, self.opt.decomposer)  
+        
+        #Z Structuring networks.
 		tril_indices = torch.tril_indices(row=self.opt.npattern, col=self.opt.npattern, offset=0)
 		self.phi = torch.nn.Parameter(torch.eye(self.opt.npattern)[tril_indices[0], tril_indices[1]])
 		self.initial_latent_distribution = guassian_colula_distribution(torch.eye(self.opt.npattern), self.opt.npattern)

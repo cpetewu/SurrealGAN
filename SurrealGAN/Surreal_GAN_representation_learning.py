@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import numpy as np
 import itertools
 import pandas as pd
@@ -69,11 +70,25 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
 	return np.array(r_indices), best_row['best_dimension_corr'], best_row['best_difference_corr'],  best_row['dimension_corr'], best_row['difference_corr'], best_row['epoch'], best_model_dir
 
 
-def repetitive_representation_learning(data, npattern, repetition, fraction, final_saving_epoch, output_dir, mono_loss_threshold=0.006, saving_freq = 2000,\
-		recons_loss_threshold=0.003, covariate=None, lam=0.2, zeta=80, kappa=80, gamma=2, mu=500, eta=6, alpha = 0.02, batchsize=300, lipschitz_k = 0.5, verbose = False, \
-		beta1 = 0.5, lr = 0.0008, max_gnorm = 100, eval_freq = 100,  start_repetition = 0, stop_repetition = None, early_stop_thresh = 0.02):
+def repetitive_representation_learning(
+        architecture,
+        data, 
+        npattern, 
+        repetition, 
+        fraction, 
+        final_saving_epoch, 
+        output_dir, 
+        batchsize = 25,
+        saving_freq = 2000,
+        covariate=None, 
+        verbose = False, 
+        eval_freq = 100,  
+        start_repetition = 0, 
+        stop_repetition = None, 
+        early_stop_thresh = 0.02):
 	"""
 	Args:
+        architecture: str, the path to the JSON file specifying the network structure and parameters.
 		data: dataframe, dataframe file with all ROI (input features) The dataframe contains
 		the following headers: "
 								 "i) the first column is the participant_id;"
@@ -84,27 +99,14 @@ def repetitive_representation_learning(data, npattern, repetition, fraction, fin
 								 "i) the first column is the participant_id;"
 								 "iii) the second column should be the diagnosis;"
 								 "The following column should be all confounding covariates. e.g., age, sex"
-		npattern: int, number of defined patterns
-		repetition: int, number of repetition of training process
+		repetition: int, number of repetitions of training process
 		fraction: float, fraction of data used for training in each repetition
 		final_saving_epoch: int, epoch number from which the last model will be saved and model training will be stopped if saving criteria satisfied
 		output_dir: str, the directory underwhich model and results will be saved
-		mono_loss_threshold: float, chosen mono_loss theshold for stopping criteria
-		recons_loss_threshold: float, chosen recons_loss theshold for stopping criteria
-		lam: int, hyperparameter for orthogonal_loss
-		zeta: int, hyperparameter for recons_loss
-		kappa: int, hyperparameter for decompose_loss
-		gamma: int, hyperparameter for change_loss
-		mu: int, hyperparameter for mono_loss
-		eta: int, hyperparameter for cn_loss
 		batchsize: int, batck size for training procedure
-		lipschitz_k: float, hyper parameter for weight clipping of transformation and reconstruction function
 		verbose: bool, choose whether to print out training procedure
-		beta1: float, parameter of ADAM optimization method
-		lr: float, learning rate
-		max_gnorm: float, maximum gradient norm for gradient clipping
 		eval_freq: int, the frequency at which the model is evaluated during training procedure
-		save_epoch_freq: int, the frequency at which the model is saved during training procedure
+		saving_freq: int, the frequency at which the model is saved during training procedure
 		start_repetition; int, indicate the last saved repetition index,
 							  used for restart previous half-finished repetition training or for parallel training; set defaultly to be 0 indicating a new repetition training process
 		stop_repetition: int, indicate the index of repetition at which the training process early stop,
@@ -114,10 +116,18 @@ def repetitive_representation_learning(data, npattern, repetition, fraction, fin
 
 	"""
 	print('Start Surreal-GAN for semi-supervised representation learning')
+    
+    with open(architecture, 'r') as file:
+        parameters = json.load(file)
 
-	Surreal_GAN_model = Surreal_GAN_train(npattern, final_saving_epoch, recons_loss_threshold, mono_loss_threshold, \
-		lam=lam, zeta=zeta, kappa=kappa, gamma=gamma, mu=mu, eta=eta, alpha=alpha, batchsize=batchsize, \
-		lipschitz_k = lipschitz_k, beta1 = beta1, lr = lr, max_gnorm = max_gnorm, eval_freq = eval_freq, saving_freq = saving_freq, early_stop_thresh = early_stop_thresh)
+	Surreal_GAN_model = Surreal_GAN_train(
+        parameters,
+        final_saving_epoch,
+        batchsize,
+        eval_freq,
+        saving_freq, 
+        early_stop_thresh
+    )
 
 	if stop_repetition == None:
 		stop_repetition = repetition

@@ -1,0 +1,87 @@
+{
+    "z_dim" : 5,
+    "input_dim" : 136,
+    "recon_loss_threshold" : 0.003,
+    "mono_loss_threshold" : 0.006,
+    "lam" :  0.2,
+    "mu" : 500,
+    "zeta" : 80,
+    "kappa" : 80,
+    "gamma" : 6,
+    "eta" : 6,
+    "alpha" : 0.05,
+    "lipschitz_k" : 0.5,
+    "beta1" : 0.5,
+    "learning_rate" : 0.0002,
+    "max_gnorm" : 100,
+    "generator": {
+        "enc_layer" : [
+            {
+                "out_channels" : 68,
+                "bias" : true,
+                "relu_alpha" : 0.2
+            },
+            {
+                "in_channels" : 68,
+                "out_channels" : 34,
+                "bias" : true,
+                "relu_alpha" : 0.2
+            }
+        ],
+        "dec_layer" : [
+            {
+                "in_channels" : 34,
+                "out_channels" : 68,
+                "bias" : true,
+                "relu_alpha" : 0.2
+            },
+            {
+                "in_channels" : 68,
+                "out_channels" : 136,
+                "bias" : true,
+                "relu_alpha" : 0.2
+            }
+        ]
+
+    },
+    "inverse": [
+        {
+            "out_channels" : 68,
+            "bias" : true,
+            "relu_alpha" : 0.2
+        },
+        {
+            "in_channels" : 68,
+            "out_channels" : 34,
+            "bias" : true,
+            "relu_alpha" : 0.2
+        },
+        {
+            "in_channels" : 34,
+            "bias" : true
+        }
+    ],
+    "decomposer": [
+        {
+            "bias" : true,
+            "relu_alpha" : 0.2
+        }
+    ],
+    "discriminator" : [
+        {
+            "out_channels" : 68,
+            "bias" : true,
+            "relu_alpha" : 0.2
+        },
+        {
+            "in_channels" : 68,
+            "out_channels" : 34,
+            "bias" : true,
+            "relu_alpha" : 0.2
+        },
+        {
+            "in_channels" : 34,
+            "bias" : true
+        }
+    ]
+}
