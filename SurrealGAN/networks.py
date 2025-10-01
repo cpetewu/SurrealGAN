@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import definitions as Def
 from .modules import TwoInputSequential, Sub_Adder
+from . import definitions as Def
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"

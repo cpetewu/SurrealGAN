@@ -1,13 +1,13 @@
 import os
 import torch
 import torch.nn.functional as F
-import definitions as Def
 from torch.distributions.kl import kl_divergence
 from collections import OrderedDict
 from torch.autograd import Variable
 from itertools import chain as ichain
 from .networks import define_Linear_Mapping, define_Linear_Reconstruction, define_Linear_Discriminator, define_Linear_Decomposer, define_Latent_Corr
 from .copula import guassian_colula_distribution, construct_scale_tril
+from . import definitions as Def
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"

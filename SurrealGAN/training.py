@@ -2,12 +2,12 @@ import os
 import time
 import numpy as np
 import torch
-import definitions as Def
 import pandas as pd
 from tqdm import tqdm
 from torch.autograd import Variable
 from .model import SurrealGAN
 from .utils import Covariate_correction, Data_normalization, parse_train_data, parse_validation_data, check_multimodel_agreement
+from . import definitions as Def
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
@@ -25,20 +25,11 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 class Surreal_GAN_train():
-
-    def __init__(
-    self,
-    parameters,
-    final_saving_epoch,
-            batchsize=25,
-            eval_freq = 100,
-    print_freq = 1000,
-    saving_freq = 1000,
-    early_stop_thresh = 0.02):
+    def __init__(self, parameters, final_saving_epoch, batchsize=25, eval_freq = 100, print_freq = 1000, saving_freq = 1000, early_stop_thresh = 0.02):
 
         self.opt=dotdict({})
 
-    #Set the parameters not in the architecture JSON file.
+        #Set the parameters not in the architecture JSON file.
         self.opt.final_saving_epoch    = final_saving_epoch
         self.opt.batchsize             = batchsize
         self.opt.eval_freq             = eval_freq
@@ -46,7 +37,7 @@ class Surreal_GAN_train():
         self.opt.saving_freq           = saving_freq
         self.opt.early_stop_thresh     = early_stop_thresh
 
-    #Set architecture params.
+        #Set architecture params.
         self.opt.npattern              = parameters[Def.Z_DIM]
         self.opt.nROI                  = parameters[Def.INPUT_DIM]
         self.opt.recons_loss_threshold = parameters[Def.RECON_LOSS_THRESHOLD]
@@ -59,16 +50,16 @@ class Surreal_GAN_train():
         self.opt.eta                   = parameters[Def.ETA]
         self.opt.alpha                 = parameters[Def.ALPHA]
         self.opt.lipschitz_k           = parameters[Def.LIPSCHITZ_K]
-    self.opt.beta1                 = parameters[Def.BETA1]
+        self.opt.beta1                 = parameters[Def.BETA1]
         self.opt.lr                    = parameters[Def.LEARNING_RATE]
         self.opt.max_gnorm             = parameters[Def.MAX_GNORM]
 
-    #Set the individual network architecture params.
-    self.opt.generator             = parameters[Def.GENERATOR]
-    self.opt.inverse               = parameters[Def.INVERSE]
-    self.opt.decomposer            = parameters[Def.DECOMPOSER]
-    self.opt.discriminator         = parameters[Def.DISCRIMINATOR]
-    self.opt.latent                = parameters[Def.LATENT]
+        #Set the individual network architecture params.
+        self.opt.generator             = parameters[Def.GENERATOR]
+        self.opt.inverse               = parameters[Def.INVERSE]
+        self.opt.decomposer            = parameters[Def.DECOMPOSER]
+        self.opt.discriminator         = parameters[Def.DISCRIMINATOR]
+        self.opt.latent                = parameters[Def.LATENT]
 
     def print_log(self, result_f, message):
         result_f.write(message+"\n")

@@ -4,12 +4,13 @@ import json
 import numpy as np
 import itertools
 import pandas as pd
-import definitions as Def
+from torchinfo import summary
 from sklearn import metrics
 from .model import SurrealGAN
 from .utils import parse_validation_data
 from .training import Surreal_GAN_train
 from scipy.stats import pearsonr
+from . import definitions as Def
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
@@ -114,6 +115,9 @@ def repetitive_representation_learning(architecture, data, repetition, fraction,
         saving_freq, 
         early_stop_thresh
     )
+
+    print(Surreal_GAN_model)
+    summary(Surreal_GAN_model)
 
     if stop_repetition == None:
         stop_repetition = repetition
