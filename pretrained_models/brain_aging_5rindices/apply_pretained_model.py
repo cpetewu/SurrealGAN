@@ -8,11 +8,9 @@ application_roi = application_roi[application_roi['diagnosis']==1].reset_index(d
 application_cov = application_cov[application_cov['diagnosis']==1].reset_index(drop=True)
 
 # apply the saved model to derive R-indices
-model = os.path.join('saved_model') 
-rindex = Surreal_GAN_representation_learning.apply_saved_model(model, application_roi, 50000, application_cov) 
+model = os.path.join('saved_model')
+rindex = Surreal_GAN_representation_learning.apply_saved_model(model, application_roi, 50000, application_cov)
 representation_result = pd.DataFrame(data=rindex,columns=['r1','r2','r3','r4','r5'])
 representation_result['participant_id'] = application_roi['participant_id']
 representation_result.rename(columns={"r1": "r1", "r2": "r3",'r3':'r4','r4':'r5','r5':'r2'},inplace=True)
 representation_result[['participant_id','r1','r2','r3','r4','r5']].to_csv('representation_result.csv',index=False) # change to the path/name of the output file
-
-

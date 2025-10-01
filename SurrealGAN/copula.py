@@ -1,4 +1,4 @@
-import torch 
+import torch
 import math
 from torch.distributions.transforms import Transform
 from torch.distributions import constraints
@@ -39,7 +39,7 @@ def construct_scale_tril(vector, ncluster):
     scale_tril = f.normalize(L,dim=1)
     scale_tril[range(ncluster), range(ncluster)] = torch.absolute(torch.diag(scale_tril,0))
     return scale_tril
-   
+
 def construct_corr_matrix(vector, ncluster):
     corr_matrix = torch.ones((ncluster, ncluster))
     tril_indices = torch.tril_indices(row=ncluster, col=ncluster, offset=-1)
@@ -47,11 +47,7 @@ def construct_corr_matrix(vector, ncluster):
     corr_matrix[tril_indices[0], tril_indices[1]] = vector
     corr_matrix[triu_indices[0], triu_indices[1]] = vector
     return corr_matrix
- 
+
 def guassian_colula_distribution(scale_tril, ncluster):
     base_distribution = torch.distributions.multivariate_normal.MultivariateNormal(torch.zeros(ncluster), scale_tril = scale_tril)
     return torch.distributions.TransformedDistribution(base_distribution, normal_cdf())
-
-
-
-

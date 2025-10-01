@@ -63,8 +63,8 @@ class LMappingGenerator(nn.Module):
             latent_zx_dim = layer[Def.OUT_CHANNELS]
 
             model.append(nn.Linear(
-                    layer[Def.IN_CHANNELS] if i > 0 else input_dim, 
-                    layer[Def.OUT_CHANNELS], 
+                    layer[Def.IN_CHANNELS] if i > 0 else input_dim,
+                    layer[Def.OUT_CHANNELS],
                     bias=layer[Def.BIAS]
                 )
             )
@@ -76,17 +76,17 @@ class LMappingGenerator(nn.Module):
 
         #Build the Z sampling and sub adder layer (combines X and sampled Z).
         model.append(product_layer(
-                latent_zx_dim, 
+                latent_zx_dim,
                 z_dim
             )
         )
-        
+
         #Build the decoding layer.
         last_index = len(hp[Def.DECODING_LAYER]) - 1
         for i,layer in enumerate(hp[Def.DECODING_LAYER]):
             model.append(nn.Linear(
-                    layer[Def.IN_CHANNELS], 
-                    layer[Def.OUT_CHANNELS] if i < last_index else input_dim, 
+                    layer[Def.IN_CHANNELS],
+                    layer[Def.OUT_CHANNELS] if i < last_index else input_dim,
                     bias=layer[Def.BIAS]
                 )
             )
@@ -157,7 +157,7 @@ class LDecompose(nn.Module):
 class LDiscriminator(nn.Module):
     def __init__(self, input_dim, hp):
         super(LDiscriminator, self).__init__()
-        
+
         self.model = nn.Sequential()
         for i, layer in enumerate(hp[:-1]):
             model.append(nn.Linear(
@@ -198,5 +198,3 @@ class LLatentCorr(nn.Module):
     def forward(self):
         pred =F.tanh(self.model(nn.Parameter(torch.tensor([1.]))))
         return pred
-
-

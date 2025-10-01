@@ -34,4 +34,3 @@ IN_CHANNELS          = 'in_channels'
 OUT_CHANNELS         = 'out_channels'
 BIAS                 = 'bias'
 RELU_ALPHA           = 'relu_alpha'
-

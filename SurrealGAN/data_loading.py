@@ -97,4 +97,3 @@ class val_CN_construction(object):
 
     def __len__(self):
         return self.num_samples
-
