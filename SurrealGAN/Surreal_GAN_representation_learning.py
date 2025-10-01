@@ -4,6 +4,7 @@ import json
 import numpy as np
 import itertools
 import pandas as pd
+import definitions as Def
 from sklearn import metrics
 from .model import SurrealGAN
 from .utils import parse_validation_data
@@ -73,7 +74,6 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
 def repetitive_representation_learning(
         architecture,
         data, 
-        npattern, 
         repetition, 
         fraction, 
         final_saving_epoch, 
@@ -137,6 +137,8 @@ def repetitive_representation_learning(
 		while not converge:
 			print("****** Model not converged at max interation, Start retraining ******")
 			converge = Surreal_GAN_model.train(data, covariate, output_dir, random_seed=i, data_fraction = fraction, verbose = verbose)
+
+    npattern = parameters[Def.Z_DIM]
 
 	r_indices, selected_model_dimension_corr, selected_model_difference_corr, dimension_corr, difference_corr, best_epoch, selected_model_dir = representation_result(output_dir, npattern, data, final_saving_epoch, saving_freq, repetition, covariate = covariate)
 	
