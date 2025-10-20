@@ -3,7 +3,6 @@ GENERATOR            = 'generator'
 INVERSE              = 'inverse'
 DECOMPOSER           = 'decomposer'
 DISCRIMINATOR        = 'discriminator'
-LATENT               = 'latent'
 
 #General definitions.
 Z_DIM                = 'z_dim'

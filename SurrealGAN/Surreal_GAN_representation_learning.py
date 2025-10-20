@@ -72,7 +72,7 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
     return np.array(r_indices), best_row['best_dimension_corr'], best_row['best_difference_corr'],  best_row['dimension_corr'], best_row['difference_corr'], best_row['epoch'], best_model_dir
 
 
-def repetitive_representation_learning(architecture, data, repetition, fraction, final_saving_epoch, output_dir, batchsize = 25, saving_freq = 2000, covariate=None, verbose = False, eval_freq = 100,  start_repetition = 0, stop_repetition = None, early_stop_thresh = 0.02):
+def repetitive_representation_learning(architecture, data, repetition, fraction, final_saving_epoch, output_dir, batchsize = 25, saving_freq = 2000, covariate=None, verbose = True, eval_freq = 100,  start_repetition = 0, stop_repetition = None, early_stop_thresh = 0.02):
     """
     Args:
         architecture: str, the path to the JSON file specifying the network structure and parameters.
@@ -110,14 +110,11 @@ def repetitive_representation_learning(architecture, data, repetition, fraction,
     Surreal_GAN_model = Surreal_GAN_train(
         parameters,
         final_saving_epoch,
-        batchsize,
-        eval_freq,
-        saving_freq, 
-        early_stop_thresh
+        batchsize=batchsize,
+        eval_freq=eval_freq,
+        saving_freq=saving_freq, 
+        early_stop_thresh=early_stop_thresh
     )
-
-    print(Surreal_GAN_model)
-    summary(Surreal_GAN_model)
 
     if stop_repetition == None:
         stop_repetition = repetition

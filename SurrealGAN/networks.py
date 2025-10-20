@@ -62,20 +62,20 @@ class LMappingGenerator(nn.Module):
         for i, layer in enumerate(hp[Def.ENCODING_LAYER]):
             latent_zx_dim = layer[Def.OUT_CHANNELS]
 
-            model.append(nn.Linear(
+            self.model.append(nn.Linear(
                     layer[Def.IN_CHANNELS] if i > 0 else input_dim,
                     layer[Def.OUT_CHANNELS],
                     bias=layer[Def.BIAS]
                 )
             )
-            model.append(nn.LeakyReLU(
+            self.model.append(nn.LeakyReLU(
                     layer[Def.RELU_ALPHA],
                     inplace=True
                 )
             )
 
         #Build the Z sampling and sub adder layer (combines X and sampled Z).
-        model.append(product_layer(
+        self.model.append(product_layer(
                 latent_zx_dim,
                 z_dim
             )
@@ -84,13 +84,13 @@ class LMappingGenerator(nn.Module):
         #Build the decoding layer.
         last_index = len(hp[Def.DECODING_LAYER]) - 1
         for i,layer in enumerate(hp[Def.DECODING_LAYER]):
-            model.append(nn.Linear(
+            self.model.append(nn.Linear(
                     layer[Def.IN_CHANNELS],
                     layer[Def.OUT_CHANNELS] if i < last_index else input_dim,
                     bias=layer[Def.BIAS]
                 )
             )
-            model.append(nn.LeakyReLU(
+            self.model.append(nn.LeakyReLU(
                     layer[Def.RELU_ALPHA],
                     inplace=True
                 )
@@ -105,13 +105,13 @@ class LEncoder(nn.Module):
 
         self.model = nn.Sequential()
         for i, layer in enumerate(hp[:-1]):
-            model.append(nn.Linear(
+            self.model.append(nn.Linear(
                     layer[Def.IN_CHANNELS] if i > 0 else input_dim,
                     layer[Def.OUT_CHANNELS],
                     bias=layer[Def.BIAS]
                 )
             )
-            model.append(nn.LeakyReLU(
+            self.model.append(nn.LeakyReLU(
                     layer[Def.RELU_ALPHA],
                     inplace=True
                 )
@@ -119,7 +119,7 @@ class LEncoder(nn.Module):
 
         #Append the final layer without a ReLU.
         #This should always map to the number of z dimensions.
-        model.append(nn.Linear(
+        self.model.append(nn.Linear(
                 hp[-1][Def.IN_CHANNELS],
                 z_dim,
                 bias=hp[-1][Def.BIAS]
@@ -133,17 +133,20 @@ class LEncoder(nn.Module):
 class LDecompose(nn.Module):
     def __init__(self, z_dim, input_dim, hp):
         super(LDecompose, self).__init__()
+        
+        self.z_dim = z_dim
+        self.input_dim = input_dim
 
         self.model = nn.Sequential()
         last_index = len(hp) - 1
         for i, layer in enumerate(hp):
-            model.append(nn.Linear(
+            self.model.append(nn.Linear(
                     layer[Def.IN_CHANNELS] if i > 0 else input_dim,
                     layer[Def.OUT_CHANNELS] if i < last_index else (z_dim * input_dim),
                     bias=layer[Def.BIAS]
                 )
             )
-            model.append(nn.LeakyReLU(
+            self.model.append(nn.LeakyReLU(
                     layer[Def.RELU_ALPHA],
                     inplace=True
                 )
@@ -151,7 +154,7 @@ class LDecompose(nn.Module):
 
     def forward(self, input_y):
         z_decompose = self.model(input_y)
-        return [z_decompose[:,self.nROI*i:self.nROI*(i+1)] for i in range(self.nPattern)]
+        return [z_decompose[:,self.input_dim*i:self.input_dim*(i+1)] for i in range(self.z_dim)]
 
 
 class LDiscriminator(nn.Module):
@@ -160,13 +163,13 @@ class LDiscriminator(nn.Module):
 
         self.model = nn.Sequential()
         for i, layer in enumerate(hp[:-1]):
-            model.append(nn.Linear(
+            self.model.append(nn.Linear(
                     layer[Def.IN_CHANNELS] if i > 0 else input_dim,
                     layer[Def.OUT_CHANNELS],
                     bias=layer[Def.BIAS]
                 )
             )
-            model.append(nn.LeakyReLU(
+            self.model.append(nn.LeakyReLU(
                     layer[Def.RELU_ALPHA],
                     inplace=True
                 )
@@ -174,7 +177,7 @@ class LDiscriminator(nn.Module):
 
         #Append the final layer without a ReLU.
         #This should always map to 2 (real/fake) classifier.
-        model.append(nn.Linear(
+        self.model.append(nn.Linear(
                 hp[-1][Def.IN_CHANNELS],
                 2,
                 bias=hp[-1][Def.BIAS]

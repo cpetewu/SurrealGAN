@@ -9,6 +9,10 @@ from .model import SurrealGAN
 from .utils import Covariate_correction, Data_normalization, parse_train_data, parse_validation_data, check_multimodel_agreement
 from . import definitions as Def
 
+import pdb
+
+from torchinfo import summary
+
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
 __credits__ = ["Zhijian Yang"]
@@ -59,7 +63,6 @@ class Surreal_GAN_train():
         self.opt.inverse               = parameters[Def.INVERSE]
         self.opt.decomposer            = parameters[Def.DECOMPOSER]
         self.opt.discriminator         = parameters[Def.DISCRIMINATOR]
-        self.opt.latent                = parameters[Def.LATENT]
 
     def print_log(self, result_f, message):
         result_f.write(message+"\n")
@@ -94,6 +97,27 @@ class Surreal_GAN_train():
         model = SurrealGAN()
         model.create(self.opt)
 
+        #Print model info 
+        print('-------------------------- Encoder/Decoder --------------------------')
+        print(model.netMapping)
+        summary(model.netMapping)
+        
+        print('-------------------------- Inverse (Single point for entire encoder decoder) --------------------------')
+        print(model.netReconstruction)
+        summary(model.netReconstruction)
+
+        print('-------------------------- Inverse (Point in Z for each input region) --------------------------')
+        print(model.netDecomposer)
+        summary(model.netDecomposer)
+        
+        print('-------------------------- Inverse (Point in Z for each input region) --------------------------')
+        print(model.netDecomposer)
+        summary(model.netDecomposer)
+        
+        print('-------------------------- Discriminator --------------------------')
+        print(model.netDiscriminator)
+        summary(model.netDiscriminator)
+
         total_steps = 0
         print_start_time = time.time()
         best_agreement = 0
@@ -102,7 +126,7 @@ class Surreal_GAN_train():
 
         criterion_loss_list = [[0 for _ in range(2)] for _ in range(3)]                    ##### number of consecutive epochs with aq and cluster_loss < threshold
         predicted_label_past = np.zeros(self.opt.n_val_data)
-
+        
         if self.opt.final_saving_epoch%self.opt.saving_freq == 0:
             save_epoch = [i * self.opt.saving_freq for i in range(2,self.opt.final_saving_epoch//self.opt.saving_freq+1)]
         else:
