@@ -3,6 +3,7 @@ import numpy as np
 import scipy
 import pandas as pd
 import itertools
+import time
 import torch 
 from sklearn.preprocessing import minmax_scale
 from sklearn.linear_model import LinearRegression
@@ -167,13 +168,17 @@ def check_multimodel_agreement(data,covar,output_dir,epoch,repetition,npattern):
     for i in range(repetition):
         path = output_dir+'/model'+str(i)
         if os.path.exists(path):
-            for i in range(100000):
+
+            #Hack for concurrent processes writing model files.
+            for i in range(100):
                 try:
-                    load_dic = torch.load(path)
+                    load_dic = torch.load(path, weights_only=False)
                 except Exception as e:
+                    time.sleep(1)
                     pass
                 else:
                     break
+
             if epoch not in load_dic.keys():
                 all_finish = False
                 break
