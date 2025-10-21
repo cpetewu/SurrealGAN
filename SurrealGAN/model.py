@@ -9,6 +9,8 @@ from .networks import define_Linear_Mapping, define_Linear_Reconstruction, defin
 from .copula import guassian_colula_distribution, construct_scale_tril
 from . import definitions as Def
 
+import time
+
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
 __credits__ = ["Zhijian Yang"]
@@ -232,7 +234,7 @@ class SurrealGAN(object):
     def save(self, save_dir, epoch, chk_name):
         chk_path = os.path.join(save_dir, chk_name)
         if os.path.exists(chk_path):
-            checkpoint = torch.load(chk_path)
+            checkpoint = torch.load(chk_path, weights_only=False)
         else:
             checkpoint = {}
             checkpoint.update(self.opt)
@@ -261,10 +263,11 @@ class SurrealGAN(object):
 
     ## load trained model
     def load(self, chk_path, epoch):
-        for i in range(100000):
+        for i in range(100):
             try:
-                checkpoint_all_epoch = torch.load(chk_path)
+                checkpoint_all_epoch = torch.load(chk_path, weights_only=False)
             except Exception as e:
+                time.sleep(1)
                 continue
             else:
                 break
