@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import torch.nn.functional as F
 from torch.distributions.kl import kl_divergence
@@ -8,8 +9,6 @@ from itertools import chain as ichain
 from .networks import define_Linear_Mapping, define_Linear_Reconstruction, define_Linear_Discriminator, define_Linear_Decomposer, define_Latent_Corr
 from .copula import guassian_colula_distribution, construct_scale_tril
 from . import definitions as Def
-
-import time
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
@@ -48,10 +47,10 @@ def sample_z_cn(real_X, npattern):
 def criterion_GAN(pred, target_is_real, prob):
     if target_is_real:
         target_var = Variable(pred.data.new(pred.shape[0]).long().fill_(0.))
-        loss=(F.cross_entropy(pred, target_var, reduce=False)*prob).mean()
+        loss=(F.cross_entropy(pred, target_var, reduction='none')*prob).mean()
     else:
         target_var = Variable(pred.data.new(pred.shape[0]).long().fill_(1.))
-        loss = (F.cross_entropy(pred, target_var, reduce=False)*prob).mean()
+        loss = (F.cross_entropy(pred, target_var, reduction='none')*prob).mean()
     return loss
 
 def criterion_orthogonal(change_batch_sum, npattern):
@@ -274,10 +273,11 @@ class SurrealGAN(object):
         checkpoint = checkpoint_all_epoch[epoch]
         self.load_opt(checkpoint_all_epoch)
         ##### definition of all netwotks
-        self.netMapping = define_Linear_Mapping(self.opt.nROI,self.opt.npattern)
-        self.netReconstruction = define_Linear_Reconstruction(self.opt.nROI,self.opt.npattern)
-        self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI,self.opt.npattern)
-        self.netDecomposer = define_Linear_Decomposer(self.opt.nROI,self.opt.npattern)
+        self.netMapping = define_Linear_Mapping(self.opt.npattern, self.opt.nROI, self.opt.generator) 
+        self.netReconstruction = define_Linear_Reconstruction(self.opt.npattern, self.opt.nROI, self.opt.inverse)
+        self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI, self.opt.discriminator)
+        self.netDecomposer = define_Linear_Decomposer(self.opt.npattern, self.opt.nROI, self.opt.decomposer)  
+
         tril_indices = torch.tril_indices(row=self.opt.npattern, col=self.opt.npattern, offset=0)
         self.phi = torch.nn.Parameter(torch.eye(self.opt.npattern)[tril_indices[0], tril_indices[1]])
         

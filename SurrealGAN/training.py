@@ -10,6 +10,19 @@ from .utils import Covariate_correction, Data_normalization, parse_train_data, p
 from . import definitions as Def
 
 import pdb
+import sys
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
 
 from torchinfo import summary
 
@@ -29,7 +42,7 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 class Surreal_GAN_train():
-    def __init__(self, parameters, final_saving_epoch, batchsize=25, eval_freq = 100, print_freq = 1000, saving_freq = 1000, early_stop_thresh = 0.02):
+    def __init__(self, parameters, final_saving_epoch, batchsize, eval_freq, saving_freq,  print_freq = 1000):
 
         self.opt=dotdict({})
 
@@ -39,9 +52,9 @@ class Surreal_GAN_train():
         self.opt.eval_freq             = eval_freq
         self.opt.print_freq            = print_freq
         self.opt.saving_freq           = saving_freq
-        self.opt.early_stop_thresh     = early_stop_thresh
 
         #Set architecture params.
+        self.opt.early_stop_thresh     = parameters[Def.EARLY_STOP_THRESHOLD]
         self.opt.npattern              = parameters[Def.Z_DIM]
         self.opt.nROI                  = parameters[Def.INPUT_DIM]
         self.opt.recons_loss_threshold = parameters[Def.RECON_LOSS_THRESHOLD]
@@ -82,10 +95,10 @@ class Surreal_GAN_train():
         cn_eval_dataset, pt_eval_dataset = parse_validation_data(data, covariate, correction_variables, normalization_variables)
         self.opt.nROI = pt_eval_dataset.shape[1]
         self.opt.n_val_data = pt_eval_dataset.shape[0]
-        return cn_train_dataset, pt_train_dataset, cn_eval_dataset, pt_eval_dataset, correction_variables, normalization_variables
+        return cn_train_dataset, pt_train_dataset, cn_eval_dataset, pt_eval_dataset, correction_variables,normalization_variables
 
 
-    def train(self, data, covariate, save_dir, repetition, random_seed=0, data_fraction=1, verbose=True):
+    def train(self, data, covariate, save_dir, repetition, random_seed=0, data_fraction=1, verbose=False):
         if verbose:
             result_f = open("%s/results.txt" % save_dir, 'w')
 
@@ -110,10 +123,6 @@ class Surreal_GAN_train():
         print(model.netDecomposer)
         summary(model.netDecomposer)
         
-        print('-------------------------- Inverse (Point in Z for each input region) --------------------------')
-        print(model.netDecomposer)
-        summary(model.netDecomposer)
-        
         print('-------------------------- Discriminator --------------------------')
         print(model.netDiscriminator)
         summary(model.netDiscriminator)
@@ -127,10 +136,12 @@ class Surreal_GAN_train():
         criterion_loss_list = [[0 for _ in range(2)] for _ in range(3)]                    ##### number of consecutive epochs with aq and cluster_loss < threshold
         predicted_label_past = np.zeros(self.opt.n_val_data)
         
+         
         if self.opt.final_saving_epoch%self.opt.saving_freq == 0:
             save_epoch = [i * self.opt.saving_freq for i in range(2,self.opt.final_saving_epoch//self.opt.saving_freq+1)]
         else:
             save_epoch = [i * self.opt.saving_freq for i in range(2,self.opt.final_saving_epoch//self.opt.saving_freq+1)]+[self.opt.final_saving_epoch]
+
         save_epoch_index = 0
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -169,9 +180,11 @@ class Surreal_GAN_train():
 
                 t = time.time() - t
                 res_str_list = ["[%d], TIME: %.4f" % (epoch, t)]
-
+                
                 if max(criterion_loss_list[0]) < self.opt.recons_loss_threshold \
-                        and max(criterion_loss_list[1])<self.opt.mono_loss_threshold and epoch > save_epoch[save_epoch_index]:
+                        and max(criterion_loss_list[1]) < self.opt.mono_loss_threshold \
+                        and epoch > save_epoch[save_epoch_index]:
+
                     model.save(save_dir, save_epoch[save_epoch_index],'model'+str(random_seed))
                     res_str_list += ["*** Saving Criterion Satisfied ***"]
                     res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])

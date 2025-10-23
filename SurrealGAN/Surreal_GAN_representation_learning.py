@@ -71,8 +71,8 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
         raise Exception("Waiting for other repetitions to finish to derive the final R-indices")
     return np.array(r_indices), best_row['best_dimension_corr'], best_row['best_difference_corr'],  best_row['dimension_corr'], best_row['difference_corr'], best_row['epoch'], best_model_dir
 
-
-def repetitive_representation_learning(architecture, data, repetition, fraction, final_saving_epoch, output_dir, batchsize = 25, saving_freq = 2000, covariate=None, verbose = True, eval_freq = 100,  start_repetition = 0, stop_repetition = None, early_stop_thresh = 0.02):
+#Add training params section
+def repetitive_representation_learning(architecture, data, covariate, repetition, fraction, final_saving_epoch, batchsize, saving_freq, eval_freq,  start_repetition, stop_repetition, output_dir, verbose = False):
     """
     Args:
         architecture: str, the path to the JSON file specifying the network structure and parameters.
@@ -110,10 +110,9 @@ def repetitive_representation_learning(architecture, data, repetition, fraction,
     Surreal_GAN_model = Surreal_GAN_train(
         parameters,
         final_saving_epoch,
-        batchsize=batchsize,
-        eval_freq=eval_freq,
-        saving_freq=saving_freq, 
-        early_stop_thresh=early_stop_thresh
+        batchsize,
+        eval_freq,
+        saving_freq
     )
 
     if stop_repetition == None:

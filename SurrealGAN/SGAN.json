@@ -1,5 +1,5 @@
 {
-    "z_dim" : 5,
+    "z_dim" : 2,
     "input_dim" : 136,
     "recon_loss_threshold" : 0.003,
     "mono_loss_threshold" : 0.006,

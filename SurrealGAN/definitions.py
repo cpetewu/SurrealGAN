@@ -1,3 +1,5 @@
+#Training parameters.
+
 #network name definitions.
 GENERATOR            = 'generator'
 INVERSE              = 'inverse'
@@ -7,8 +9,8 @@ DISCRIMINATOR        = 'discriminator'
 #General definitions.
 Z_DIM                = 'z_dim'
 INPUT_DIM            = 'input_dim'
-FINAL_SAVING_EPOCH   = 'final_saving_epoch'
 RECON_LOSS_THRESHOLD = 'recon_loss_threshold'
+EARLY_STOP_THRESHOLD = 'early_stop_threshold'
 MONO_LOSS_THRESHOLD  = 'mono_loss_threshold'
 LAM                  = 'lam'
 MU                   = 'mu'
