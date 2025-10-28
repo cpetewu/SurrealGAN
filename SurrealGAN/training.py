@@ -230,7 +230,7 @@ class Surreal_GAN_train():
 
                         mean_dimension_corr = np.mean(dimension_corr)
                         mean_difference_corr = np.mean(difference_corr)
-                        mean_dim_diff = mean_dimension_corr + mean_dimension_corr/2
+                        mean_dim_diff = (mean_dimension_corr + mean_dimension_corr) / 2
 
                         if (prev_max_thresh - self.opt.early_stop_thresh) > max(last_max_thresh, mean_dim_diff):
                             stop = 'yes'
