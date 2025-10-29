@@ -15,6 +15,8 @@ from .data_loading import PTIterator, CNIterator, val_PT_construction, val_CN_co
 from lifelines.utils import concordance_index
 from scipy.stats import pearsonr
 
+import pdb
+
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
 __credits__ = ["Zhijian Yang"]
@@ -185,6 +187,7 @@ def check_multimodel_agreement(data,covar,output_dir,epoch,repetition,npattern):
         else:
             all_finish = False
             break
+
     all_rindices = []
     if all_finish:
         for i in range(repetition):

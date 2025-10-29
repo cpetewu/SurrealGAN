@@ -9,21 +9,6 @@ from .model import SurrealGAN
 from .utils import Covariate_correction, Data_normalization, parse_train_data, parse_validation_data, check_multimodel_agreement
 from . import definitions as Def
 
-import pdb
-import sys
-class ForkedPdb(pdb.Pdb):
-    """A Pdb subclass that may be used
-    from a forked multiprocessing child
-
-    """
-    def interaction(self, *args, **kwargs):
-        _stdin = sys.stdin
-        try:
-            sys.stdin = open('/dev/stdin')
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = _stdin
-
 from torchinfo import summary
 
 __author__ = "Zhijian Yang"
@@ -96,7 +81,73 @@ class Surreal_GAN_train():
         self.opt.nROI = pt_eval_dataset.shape[1]
         self.opt.n_val_data = pt_eval_dataset.shape[0]
         return cn_train_dataset, pt_train_dataset, cn_eval_dataset, pt_eval_dataset, correction_variables,normalization_variables
+    
+    def save_model_agreement(self, data, covariate, save_dir, save_epoch_number, repetition):
+        agreement_list = check_multimodel_agreement(
+            data, 
+            covariate, 
+            save_dir, 
+            save_epoch_number, 
+            repetition,
+            self.opt.npattern
+        )
+        
+        agreement_csv_path = os.path.join(save_dir, "model_agreements.csv")
+        if os.path.exists(agreement_csv_path):
+            agreement_f = pd.read_csv(agreement_csv_path)
+        else:
+            agreement_f = pd.DataFrame(
+                columns = [
+                    'epoch',
+                    'Rindices_corr',
+                    'dimension_corr',
+                    'difference_corr',
+                    'best_Rindices_corr',
+                    'best_dimension_corr',
+                    'best_difference_corr',
+                    'best_model',
+                    'stop'
+                ]
+            )
 
+        if len(agreement_list) > 0:
+
+            dimension_corr, difference_corr = agreement_list[1], agreement_list[0]
+            Rindices_corr = [(a + b)/2 for a, b in zip(dimension_corr, difference_corr)]
+        
+            best_model = Rindices_corr.index(max(Rindices_corr))
+
+            prev_max_thresh =  agreement_f.iloc[:-2]['Rindices_corr'].max()
+            last_max_thresh = agreement_f.iloc[-2:]['Rindices_corr'].max()
+
+            mean_dimension_corr = np.mean(dimension_corr)
+            mean_difference_corr = np.mean(difference_corr)
+            mean_dim_diff = (mean_dimension_corr + mean_dimension_corr) / 2
+
+            if (prev_max_thresh - self.opt.early_stop_thresh) > max(last_max_thresh, mean_dim_diff):
+                stop = 'yes'
+            else:
+                stop = 'no'
+
+            if save_epoch_number not in agreement_f['epoch']:
+                agreement_f.loc[len(agreement_f)] = {
+                    'epoch'                : save_epoch_number,
+                    'Rindices_corr'        : mean_dim_diff, 
+                    'dimension_corr'       : mean_dimension_corr, 
+                    'difference_corr'      : mean_difference_corr,
+                    'best_Rindices_corr'   : Rindices_corr[best_model],
+                    'best_dimension_corr'  : dimension_corr[best_model],
+                    'best_difference_corr' : difference_corr[best_model],
+                    'best_model'           : best_model,
+                    'stop'                 : stop
+                }
+
+                agreement_f.to_csv(agreement_csv_path,index=False)
+
+        if (agreement_f['stop'] == 'yes').any():
+            return True
+
+        return False
 
     def train(self, data, covariate, save_dir, repetition, random_seed=0, data_fraction=1, verbose=False):
         if verbose:
@@ -137,7 +188,7 @@ class Surreal_GAN_train():
         predicted_label_past = np.zeros(self.opt.n_val_data)
         
          
-        if self.opt.final_saving_epoch%self.opt.saving_freq == 0:
+        if self.opt.final_saving_epoch % self.opt.saving_freq == 0:
             save_epoch = [i * self.opt.saving_freq for i in range(2,self.opt.final_saving_epoch//self.opt.saving_freq+1)]
         else:
             save_epoch = [i * self.opt.saving_freq for i in range(2,self.opt.final_saving_epoch//self.opt.saving_freq+1)]+[self.opt.final_saving_epoch]
@@ -168,7 +219,7 @@ class Surreal_GAN_train():
                     if verbose:
                         self.print_log(result_f, self.format_log(epoch, epoch_iter, losses, t))
                         print_start_time = time.time()
-
+        
             if epoch % self.opt.eval_freq == 0:
                 t = time.time()
 
@@ -191,70 +242,20 @@ class Surreal_GAN_train():
                     res_str_list += ["*** Saving Criterion Satisfied ***"]
                     res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
 
-                    agreement_list = check_multimodel_agreement(
+                
+                    early_stop = save_model_agreement(
+                        self, 
                         data, 
                         covariate, 
                         save_dir, 
                         save_epoch[save_epoch_index], 
-                        repetition,self.opt.npattern
+                        repetition
                     )
 
-                    if os.path.exists(os.path.join(save_dir,"model_agreements.csv")):
-                        agreement_f = pd.read_csv(
-                            os.path.join(save_dir, "model_agreements.csv")
-                        )
-                    else:
-                        agreement_f = pd.DataFrame(
-                            columns = [
-                                'epoch',
-                                'Rindices_corr',
-                                'dimension_corr',
-                                'difference_corr',
-                                'best_Rindices_corr',
-                                'best_dimension_corr',
-                                'best_difference_corr',
-                                'best_model',
-                                'stop'
-                            ]
-                        )
-
-                    if len(agreement_list) > 0:
-
-                        dimension_corr, difference_corr = agreement_list[1], agreement_list[0]
-                        Rindices_corr = [(a + b)/2 for a, b in zip(dimension_corr, difference_corr)]
-                    
-                        best_model = Rindices_corr.index(max(Rindices_corr))
-
-                        prev_max_thresh =  agreement_f.iloc[:-2]['Rindices_corr'].max()
-                        last_max_thresh = agreement_f.iloc[-2:]['Rindices_corr'].max()
-
-                        mean_dimension_corr = np.mean(dimension_corr)
-                        mean_difference_corr = np.mean(difference_corr)
-                        mean_dim_diff = (mean_dimension_corr + mean_dimension_corr) / 2
-
-                        if (prev_max_thresh - self.opt.early_stop_thresh) > max(last_max_thresh, mean_dim_diff):
-                            stop = 'yes'
-                        else:
-                            stop = 'no'
-
-                        if save_epoch[save_epoch_index] not in agreement_f['epoch']:
-                            agreement_f.loc[len(agreement_f)] = {
-                                'epoch': save_epoch[save_epoch_index],
-                                'Rindices_corr'        : mean_dim_diff, 
-                                'dimension_corr'       : mean_dimension_corr, 
-                                'difference_corr'      : mean_difference_corr,
-                                'best_Rindices_corr'   : Rindices_corr[best_model],
-                                'best_dimension_corr'  : dimension_corr[best_model],
-                                'best_difference_corr' : difference_corr[best_model],
-                                'best_model'           : best_model,
-                                'stop'                 : stop
-                            }
-
-                            agreement_f.to_csv(os.path.join(save_dir,"model_agreements.csv"),index=False)
-
-                    if (agreement_f['stop'] == 'yes').any():
+                    if early_stop:
                         return True
 
+                
                     save_epoch_index+=1
 
                     if verbose:
