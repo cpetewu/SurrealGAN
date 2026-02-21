@@ -243,8 +243,7 @@ class Surreal_GAN_train():
                     res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
 
                 
-                    early_stop = save_model_agreement(
-                        self, 
+                    early_stop = self.save_model_agreement(
                         data, 
                         covariate, 
                         save_dir, 
