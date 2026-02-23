@@ -237,7 +237,9 @@ class SurrealGAN(object):
         else:
             checkpoint = {}
             checkpoint.update(self.opt)
-        checkpoint[epoch] = {'netMapping':self.netMapping.state_dict(),
+
+        checkpoint[epoch] = { 
+            'netMapping':self.netMapping.state_dict(),
             'netDiscriminator':self.netDiscriminator.state_dict(),
             'optimizer_D':self.optimizer_D.state_dict(),
             'optimizer_M':self.optimizer_M.state_dict(),

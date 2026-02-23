@@ -111,7 +111,6 @@ class Surreal_GAN_train():
             )
 
         if len(agreement_list) > 0:
-
             dimension_corr, difference_corr = agreement_list[1], agreement_list[0]
             Rindices_corr = [(a + b)/2 for a, b in zip(dimension_corr, difference_corr)]
         

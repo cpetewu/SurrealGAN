@@ -12,7 +12,6 @@ from .training import Surreal_GAN_train
 from scipy.stats import pearsonr
 from . import definitions as Def
 
-
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
 __credits__ = ["Zhijian Yang"]
@@ -54,6 +53,7 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
     Returns: R-indices, Pattern c-indices between the selected repetition and all other repetitionss, Pattern c-indices among all repetitions, path to the final selected model used for deriving R-indices
 
     """
+
     if os.path.exists("%s/model_agreements.csv" % output_dir):
         agreement_f = pd.read_csv(os.path.join(output_dir,'model_agreements.csv'))
         if agreement_f['epoch'].max() < final_saving_epoch and (not (agreement_f['stop'] == 'yes').any()):
