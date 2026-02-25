@@ -41,7 +41,6 @@ class Surreal_GAN_train():
         #Set architecture params.
         self.opt.early_stop_thresh     = parameters[Def.EARLY_STOP_THRESHOLD]
         self.opt.npattern              = parameters[Def.Z_DIM]
-        self.opt.nROI                  = parameters[Def.INPUT_DIM]
         self.opt.recons_loss_threshold = parameters[Def.RECON_LOSS_THRESHOLD]
         self.opt.mono_loss_threshold   = parameters[Def.MONO_LOSS_THRESHOLD]
         self.opt.lam                   = parameters[Def.LAM]
@@ -149,6 +148,8 @@ class Surreal_GAN_train():
         return False
 
     def train(self, data, covariate, save_dir, repetition, random_seed=0, data_fraction=1, verbose=False):
+        
+
         if verbose:
             result_f = open("%s/results.txt" % save_dir, 'w')
 
@@ -157,8 +158,10 @@ class Surreal_GAN_train():
         self.opt.normalization_variables = normalization_variables
 
         # create_model
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = SurrealGAN()
-        model.create(self.opt)
+        model.create(self.opt, device)
+       
 
         #Print model info 
         print('-------------------------- Encoder/Decoder --------------------------')

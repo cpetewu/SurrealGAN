@@ -1,10 +1,10 @@
 import os
 import time
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.kl import kl_divergence
 from collections import OrderedDict
-from torch.autograd import Variable
 from itertools import chain as ichain
 from .networks import define_Linear_Mapping, define_Linear_Reconstruction, define_Linear_Discriminator, define_Linear_Decomposer, define_Latent_Corr
 from .copula import guassian_colula_distribution, construct_scale_tril
@@ -20,44 +20,62 @@ __email__ = "zhijianyang@outlook.com"
 __status__ = "Development"
 
 #####sample from discrete uniform random variable and construct SUB variable. 
-def sample_z_previous(real_X,index, npattern):
-    Tensor = torch.FloatTensor
-    z_idx = torch.empty(real_X.size(0), dtype=torch.long)
-    z_idx[:] = index
-    z = Tensor(real_X.size(0), npattern).fill_(0)
-    zt_random = Variable(real_X.data.new(real_X.size(0),1).uniform_(0.00000001,0.99999999))
+def sample_z_previous(real_X, index, npattern):
+    device = real_X.device
+    batch_size = real_X.size(0)
+
+    z_idx = torch.full((batch_size,), index, dtype=torch.long, device=device)
+
+    z = torch.zeros(batch_size, npattern, device=device)
+
+    zt_random = torch.empty(batch_size, 1, device=device).uniform_(1e-8, 0.99999999)
+
     z = z.scatter(1, z_idx.unsqueeze(1), zt_random)
-    #zt_random = zt_random.scatter_(1, index.unsqueeze(1), 0)
+
     return z
 
-def sample_z_later(pre,real_X, index,npattern):
-    Tensor = torch.FloatTensor
-    pre = pre[:,index:index+1]
-    z_idx = torch.empty(real_X.size(0), dtype=torch.long)
-    z_idx[:] = index
-    z = Tensor(real_X.size(0), npattern).fill_(0)
-    zt_random = Variable((1 - pre) * torch.rand(real_X.size(0),1) + pre)
+def sample_z_later(pre, real_X, index, npattern):
+    device = real_X.device
+    batch_size = real_X.size(0)
+
+    pre = pre[:, index:index+1]
+
+    z_idx = torch.full((batch_size,), index, dtype=torch.long, device=device)
+
+    z = torch.zeros(batch_size, npattern, device=device)
+
+    zt_random = (1 - pre) * torch.rand(batch_size, 1, device=device) + pre
+
     z = z.scatter(1, z_idx.unsqueeze(1), zt_random)
+
     return z
 
 def sample_z_cn(real_X, npattern):
-    z_random = Variable(real_X.data.new(real_X.size(0),npattern).uniform_(0.000000001,0.05))
+    device = real_X.device
+    batch_size = real_X.size(0)
+
+    z_random = torch.empty(batch_size, npattern, device=device).uniform_(1e-9, 0.05)
+
     return z_random
 
 def criterion_GAN(pred, target_is_real, prob):
+    device = pred.device
+
+    target_var = None
     if target_is_real:
-        target_var = Variable(pred.data.new(pred.shape[0]).long().fill_(0.))
-        loss=(F.cross_entropy(pred, target_var, reduction='none')*prob).mean()
+        target_var = torch.zeros(pred.size(0), dtype=torch.long, device=device)
     else:
-        target_var = Variable(pred.data.new(pred.shape[0]).long().fill_(1.))
-        loss = (F.cross_entropy(pred, target_var, reduction='none')*prob).mean()
-    return loss
+        target_var = torch.ones(pred.size(0), dtype=torch.long, device=device)
+
+    loss = F.cross_entropy(pred, target_var, reduction='none')
+    return (loss * prob).mean()
 
 def criterion_orthogonal(change_batch_sum, npattern):
     change_batch_sum = torch.abs(change_batch_sum)
     change_batch_sum = change_batch_sum/(torch.norm(change_batch_sum,dim=1).view(npattern,1))
     matrix = torch.matmul(change_batch_sum, torch.transpose(change_batch_sum,0,1))
-    return F.mse_loss(matrix,torch.eye(npattern))
+
+    return F.mse_loss(matrix,torch.eye(npattern, device = matrix.device))
 
 def mono_loss(later, prev):
     return F.mse_loss(torch.max(torch.abs(prev)-torch.abs(later),torch.zeros_like(later)),torch.zeros_like(later))
@@ -68,8 +86,10 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-class SurrealGAN(object):
+class SurrealGAN(nn.Module):
     def __init__(self):
+        super().__init__()
+
         self.opt = None
 
         ##### definition of all netwotks
@@ -88,8 +108,12 @@ class SurrealGAN(object):
         self.criterionRecons = F.mse_loss
         self.criterionOrtho = criterion_orthogonal
 
+        self.register_parameter("phi", None)
 
-    def create(self, opt):
+
+    def create(self, opt, device):
+
+        self.device = device
 
         self.opt = opt
         #Read from the architecture json file to construct the network architecture.
@@ -108,9 +132,12 @@ class SurrealGAN(object):
         self.netDecomposer = define_Linear_Decomposer(self.opt.npattern, self.opt.nROI, self.opt.decomposer)  
         
         #Z Structuring networks.
+
         tril_indices = torch.tril_indices(row=self.opt.npattern, col=self.opt.npattern, offset=0)
-        self.phi = torch.nn.Parameter(torch.eye(self.opt.npattern)[tril_indices[0], tril_indices[1]])
-        self.initial_latent_distribution = guassian_colula_distribution(torch.eye(self.opt.npattern), self.opt.npattern)
+        phi_init = torch.eye(self.opt.npattern, device=device)[tril_indices[0], tril_indices[1]]
+        self.phi = nn.Parameter(phi_init)
+
+        self.initial_latent_distribution = guassian_colula_distribution(torch.eye(self.opt.npattern, device=device), self.opt.npattern)
 
         ## definition of all optimizers
         self.optimizer_M = torch.optim.Adam(ichain(self.netMapping.parameters(),self.netDecomposer.parameters(),self.netReconstruction.parameters()),
@@ -119,15 +146,23 @@ class SurrealGAN(object):
                                             lr=self.opt.lr/5., betas=(self.opt.beta1, 0.999))
         self.optimizer_phi = torch.optim.Adam(iter([self.phi]),
                                             lr=self.opt.lr/30., betas=(self.opt.beta1, 0.999))
+        
+        #copy to device
+        self.to(device)
 
     def train_instance(self, x, real_y, alpha):
+
+        #send x and real_y to device
+        x = x.to(self.device)
+        real_y = real_y.to(self.device)
+
         z_pre = [sample_z_previous(x,i,self.opt.npattern) for i in range(self.opt.npattern)]
         z_pre_sum = torch.sum(torch.stack(z_pre),dim=0)
-        z_later = [sample_z_later(z_pre[i],x,i,self.opt.npattern) for i in range(self.opt.npattern)]
+        z_later = [sample_z_later(z_pre[i],x,i,self.opt.npattern ) for i in range(self.opt.npattern)]
         z_later_sum = torch.sum(torch.stack(z_later),dim=0)
-
-        fake_y_pre_change = [self.netMapping.forward(x,z_pre[i]) for i in range(self.opt.npattern)]
-        fake_y_later_change = [self.netMapping.forward(x,z_later[i]) for i in range(self.opt.npattern)]
+        
+        fake_y_pre_change = [self.netMapping(x,z_pre[i]) for i in range(self.opt.npattern)]
+        fake_y_later_change = [self.netMapping(x,z_later[i]) for i in range(self.opt.npattern)]
 
         fake_y_pre_change_tensor = torch.stack(fake_y_pre_change)
         fake_y_later_change_tensor = torch.stack(fake_y_later_change)
@@ -137,6 +172,7 @@ class SurrealGAN(object):
 
         fake_y_change_batch_sum = torch.mean(torch.cat((fake_y_pre_change_tensor , fake_y_later_change_tensor),1),dim=1)
         
+
         z_cn = sample_z_cn(x, self.opt.npattern)
         fake_y_cn = self.netMapping.forward(x,z_cn) + x
 
@@ -152,7 +188,7 @@ class SurrealGAN(object):
         loss_D_fake_y = self.criterionGAN(pred_fake_y, False, post_prob.detach())
         pred_true_y = self.netDiscriminator.forward(real_y)
         loss_D_true_y = self.criterionGAN(pred_true_y, True, post_prob.detach())
-        loss_D= 0.5* (loss_D_fake_y + loss_D_true_y)
+        loss_D = 0.5* (loss_D_fake_y + loss_D_true_y)
 
         ## update weights of discriminator
         self.optimizer_D.zero_grad()
@@ -161,7 +197,10 @@ class SurrealGAN(object):
         self.optimizer_D.step()
 
         ## Phi loss
-        loss_phi = self.criterionGAN(self.netDiscriminator.forward(fake_y.detach()).detach(), True, post_prob)+alpha*kl_divergence(self.initial_latent_distribution,latent_distribution)
+        
+        criterion = self.criterionGAN(self.netDiscriminator.forward(fake_y.detach()).detach(), True, post_prob)
+
+        loss_phi = criterion+alpha*kl_divergence(self.initial_latent_distribution,latent_distribution)
         self.optimizer_phi.zero_grad()
         loss_phi.backward()
         self.optimizer_phi.step()
@@ -196,12 +235,14 @@ class SurrealGAN(object):
         self.optimizer_M.step()
 
         ## perform weight clipping
-        for p in self.netMapping.parameters():
-            p.data.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
-        for p in self.netReconstruction.parameters():
-            p.data.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
-        for p in self.netDecomposer.parameters():
-            p.data.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
+        with torch.no_grad():
+
+            for p in self.netMapping.parameters():
+                p.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
+            for p in self.netReconstruction.parameters():
+                p.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
+            for p in self.netDecomposer.parameters():
+                p.clamp_(-self.opt.lipschitz_k, self.opt.lipschitz_k)
 
         ## Return dicts
         losses=OrderedDict([('Discriminator_loss', loss_D.item()),('Mapping_loss', loss_mapping.item()),('loss_change', change_loss.item()),('loss_orthogonal', orthogonal_loss.item())
@@ -212,18 +253,18 @@ class SurrealGAN(object):
     ## return decomposed changes of each dimension given PT data
     def decompose(self,real_y):
         decompose_y=self.netDecomposer.forward(real_y)
-        return [decompose_y[i].detach().numpy() for i in range(self.opt.npattern)]
+        return [decompose_y[i].detach().cpu().numpy() for i in range(self.opt.npattern)]
 
     ## return rindices given PT data
     def predict_rindices(self,real_y):
         decompose_y=self.netDecomposer.forward(real_y)
         reconst_zt_decompose = [self.netReconstruction.forward(decompose_y[i]) for i in range(self.opt.npattern)]
         t = torch.sum(torch.stack(reconst_zt_decompose),dim=0)
-        return t.detach().numpy()
+        return t.detach().cpu().numpy()
 
     ## return generated patient data with given latent variable
     def predict_Y(self, x, z):
-        return self.netMapping.forward(x, z).detach().numpy()
+        return self.netMapping.forward(x, z).detach().cpu().numpy()
 
     def get_corr(self):
         scale_tril = construct_scale_tril(self.phi,self.opt.npattern)
@@ -280,8 +321,7 @@ class SurrealGAN(object):
         self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI, self.opt.discriminator)
         self.netDecomposer = define_Linear_Decomposer(self.opt.npattern, self.opt.nROI, self.opt.decomposer)  
 
-        tril_indices = torch.tril_indices(row=self.opt.npattern, col=self.opt.npattern, offset=0)
-        self.phi = torch.nn.Parameter(torch.eye(self.opt.npattern)[tril_indices[0], tril_indices[1]])
+        self.phi.data.copy_(checkpoint['phi'])
         
         ##### definition of all optimizers
         self.optimizer_M = torch.optim.Adam(ichain(self.netMapping.parameters(),self.netDecomposer.parameters(),self.netReconstruction.parameters()),
@@ -299,7 +339,3 @@ class SurrealGAN(object):
         self.optimizer_M.load_state_dict(checkpoint['optimizer_M'])
         self.optimizer_phi.load_state_dict(checkpoint['optimizer_phi'])
         self.phi = checkpoint['phi']
-            
-
-
-        
