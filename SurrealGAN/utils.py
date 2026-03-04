@@ -145,7 +145,14 @@ def calculate_pair_wise_correlation(r1,r2,npattern):
     diff_corr = 0
     for i in range(len(pairs)):
         diff_corr += pearsonr(r1[:,pairs[i][0]]-r1[:,pairs[i][1]],r2[:,best_order[pairs[i][0]]]-r2[:,best_order[pairs[i][1]]])[0]
-    return diff_corr/len(pairs), np.mean(corr)
+    
+    mean_corr = np.mean(corr)
+    
+    #The M=1 case: the diff cor is 1 by default.
+    if len(pairs) == 0 and diff_corr == 0:
+        return 1, mean_corr
+
+    return diff_corr/len(pairs), mean_corr
 
 
 def calculate_group_compare_correlation(prediction_rindices,npattern):

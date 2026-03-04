@@ -111,16 +111,32 @@ class Surreal_GAN_train():
 
         if len(agreement_list) > 0:
             dimension_corr, difference_corr = agreement_list[1], agreement_list[0]
-            Rindices_corr = [(a + b)/2 for a, b in zip(dimension_corr, difference_corr)]
+            
+            #Check if all the models have a diff corr of 1.0. If so, then the pattern was M=1 and only dim corr should
+            #be used.
+
+            pattern_one = True
+            for diff_cor in difference_corr:
+                if diff_cor != 1.0:
+                    pattern_one = False
+                    break
+
+            Rindices_corr = None 
+
+            mean_dimension_corr = np.mean(dimension_corr)
+            mean_difference_corr = np.mean(difference_corr)
+            if pattern_one:
+                Rindices_corr = [a for a in dimension_corr] 
+                mean_dim_diff = mean_dimension_corr
+            else:
+                Rindices_corr = [(a + b)/2 for a, b in zip(dimension_corr, difference_corr)] 
+                mean_dim_diff = (mean_dimension_corr + mean_difference_corr) / 2
         
             best_model = Rindices_corr.index(max(Rindices_corr))
 
             prev_max_thresh =  agreement_f.iloc[:-2]['Rindices_corr'].max()
             last_max_thresh = agreement_f.iloc[-2:]['Rindices_corr'].max()
 
-            mean_dimension_corr = np.mean(dimension_corr)
-            mean_difference_corr = np.mean(difference_corr)
-            mean_dim_diff = (mean_dimension_corr + mean_difference_corr) / 2
 
             if (prev_max_thresh - self.opt.early_stop_thresh) > max(last_max_thresh, mean_dim_diff):
                 stop = 'yes'
