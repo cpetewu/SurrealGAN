@@ -321,7 +321,10 @@ class SurrealGAN(nn.Module):
         self.netDiscriminator = define_Linear_Discriminator(self.opt.nROI, self.opt.discriminator)
         self.netDecomposer = define_Linear_Decomposer(self.opt.npattern, self.opt.nROI, self.opt.decomposer)  
 
-        self.phi.data.copy_(checkpoint['phi'])
+        if isinstance(checkpoint['phi'], nn.Parameter):
+            self.phi = nn.Parameter(checkpoint['phi'].data)    
+        else:
+            self.phi = checkpoint['phi']
         
         ##### definition of all optimizers
         self.optimizer_M = torch.optim.Adam(ichain(self.netMapping.parameters(),self.netDecomposer.parameters(),self.netReconstruction.parameters()),
@@ -338,4 +341,3 @@ class SurrealGAN(nn.Module):
         self.optimizer_D.load_state_dict(checkpoint['optimizer_D'])
         self.optimizer_M.load_state_dict(checkpoint['optimizer_M'])
         self.optimizer_phi.load_state_dict(checkpoint['optimizer_phi'])
-        self.phi = checkpoint['phi']

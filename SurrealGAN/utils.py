@@ -112,6 +112,7 @@ def apply_saved_model(model_dir, data, epoch, covariate=None):
     Returns: R-indices
 
     """
+
     data = data[data['diagnosis']==1]
     if covariate is not None:
         covariate = covariate[covariate['diagnosis']==1]

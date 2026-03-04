@@ -11,6 +11,7 @@ from .utils import parse_validation_data
 from .training import Surreal_GAN_train
 from scipy.stats import pearsonr
 from . import definitions as Def
+from datetime import datetime
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
@@ -138,26 +139,30 @@ def repetitive_representation_learning(architecture, data, covariate, repetition
     if stop_repetition == None:
         stop_repetition = repetition
     for i in range(start_repetition, stop_repetition):
-        print('****** Starting training of Repetition '+str(i)+" ******")
+        seed = int(datetime.now().timestamp())
+        print('****** Starting training of Repetition '+str(i) + ' seed: ' + str(seed) + " ******")
         converge = Surreal_GAN_model.train(
             data, 
             covariate, 
             output_dir, 
             repetition, 
-            random_seed=i, 
-            data_fraction = fraction, 
-            verbose = verbose
+            seed, 
+            fraction, 
+            verbose,
+            i
         )
         while not converge:
-            print("****** Model not converged at max interation, Start retraining ******")
+            seed = int(datetime.now().timestamp())
+            print("****** Model not converged at max interation, Start retraining seed: " + str(seed) + " ******")
             converge = Surreal_GAN_model.train(
                 data, 
                 covariate, 
                 output_dir, 
                 repetition, 
-                random_seed=i, 
-                data_fraction = fraction, 
-                verbose = verbose
+                seed, 
+                fraction, 
+                verbose,
+                i
             )
 
     npattern = parameters[Def.Z_DIM]

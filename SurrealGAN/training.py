@@ -120,7 +120,7 @@ class Surreal_GAN_train():
 
             mean_dimension_corr = np.mean(dimension_corr)
             mean_difference_corr = np.mean(difference_corr)
-            mean_dim_diff = (mean_dimension_corr + mean_dimension_corr) / 2
+            mean_dim_diff = (mean_dimension_corr + mean_difference_corr) / 2
 
             if (prev_max_thresh - self.opt.early_stop_thresh) > max(last_max_thresh, mean_dim_diff):
                 stop = 'yes'
@@ -147,11 +147,11 @@ class Surreal_GAN_train():
 
         return False
 
-    def train(self, data, covariate, save_dir, repetition, random_seed=0, data_fraction=1, verbose=False):
+    def train(self, data, covariate, save_dir, repetition, random_seed, data_fraction, verbose, run_number):
         
 
         if verbose:
-            result_f = open("%s/results.txt" % save_dir, 'w')
+            result_f = open("%s/results_repetition_%d_seed_%d.txt" % (save_dir, run_number, random_seed), 'w')
 
         cn_train_dataset, pt_train_dataset, eval_X, eval_Y, correction_variables, normalization_variables = self.parse_data(data, covariate, random_seed, data_fraction)
         self.opt.correction_variables = correction_variables
@@ -239,7 +239,7 @@ class Surreal_GAN_train():
                         and max(criterion_loss_list[1]) < self.opt.mono_loss_threshold \
                         and epoch > save_epoch[save_epoch_index]:
 
-                    model.save(save_dir, save_epoch[save_epoch_index],'model'+str(random_seed))
+                    model.save(save_dir, save_epoch[save_epoch_index],'model'+str(run_number))
 
                     res_str_list += ["*** Saving Criterion Satisfied ***"]
                     res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
