@@ -3,6 +3,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd.functional import jacobian as torch_jacobian
 from torch.distributions.kl import kl_divergence
 from collections import OrderedDict
 from itertools import chain as ichain
@@ -254,6 +255,31 @@ class SurrealGAN(nn.Module):
     def decompose(self,real_y):
         decompose_y=self.netDecomposer.forward(real_y)
         return [decompose_y[i].detach().cpu().numpy() for i in range(self.opt.npattern)]
+    
+    ## return rindices, jacobian, saliency given PT data
+    def compute_jacobian(self, real_y):
+        real_y = real_y.to(self.device).detach()
+        
+        def forward_fn(y):
+            decompose_y = self.netDecomposer.forward(y)
+            reconst_zt = [self.netReconstruction.forward(decompose_y[i])
+                          for i in range(self.opt.npattern)]
+            return torch.stack(reconst_zt, dim=1)
+        
+        all_jacobians = []
+        for i in range(real_y.shape[0]):
+            sample = real_y[i:i+1] 
+            J = torch_jacobian(forward_fn, sample)
+            jacobian_i = J[0, :, 0, 0, :]
+            all_jacobians.append(jacobian_i)
+        
+        jacobian = torch.stack(all_jacobians)
+        saliency = torch.abs(jacobian)
+        
+        jacobian = jacobian.detach().cpu().numpy()
+        saliency = saliency.detach().cpu().numpy()
+        return jacobian, saliency
+        
 
     ## return rindices given PT data
     def predict_rindices(self,real_y):
@@ -304,7 +330,9 @@ class SurrealGAN(nn.Module):
                 self.opt[key] = checkpoint[key]     
 
     ## load trained model
-    def load(self, chk_path, epoch):
+    def load(self, chk_path, epoch, device):
+        self.device = device
+
         for i in range(100):
             try:
                 checkpoint_all_epoch = torch.load(chk_path, weights_only=False)
@@ -341,3 +369,7 @@ class SurrealGAN(nn.Module):
         self.optimizer_D.load_state_dict(checkpoint['optimizer_D'])
         self.optimizer_M.load_state_dict(checkpoint['optimizer_M'])
         self.optimizer_phi.load_state_dict(checkpoint['optimizer_phi'])
+        
+        self.to(device)
+
+    

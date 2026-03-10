@@ -12,6 +12,7 @@ from .training import Surreal_GAN_train
 from scipy.stats import pearsonr
 from . import definitions as Def
 from datetime import datetime
+import torch
 
 __author__ = "Zhijian Yang"
 __copyright__ = "Copyright 2019-2020 The CBICA & SBIA Lab"
@@ -21,6 +22,57 @@ __version__ = "0.0.1"
 __maintainer__ = "Zhijian Yang"
 __email__ = "zhijianyang@outlook.com"
 __status__ = "Development"
+
+def generate_model_saliency(model_dir, epoch, data, save_saliency, covariate=None, save_jacobian = None):
+    """
+    Function used to generate the saliency for a given R-index prediction
+    Args:
+        model_dir: string, path to the saved data
+        epoch: what epoch to load
+        data, data_frame, dataframe with same format as training data. PT data can be any samples in or out of the training set.
+        covariate, data_frame, dataframe with same format as training covariate. PT data can be any samples in or out of the training set.
+        save_jacobian: string, optional path to additionally save the jocobian, (signed version of the saliency)
+    """
+
+    data = data[data['diagnosis']==1]
+    if covariate is not None:
+        covariate = covariate[covariate['diagnosis']==1]
+
+    model = SurrealGAN()
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.load(model_dir, epoch, device)
+    
+    model.get_corr()
+    validation_data = parse_validation_data(
+        data, 
+        covariate,model.opt.correction_variables,
+        model.opt.normalization_variables
+    ).to(device)
+
+    r_indices = model.predict_rindices(validation_data)
+    jacobian, saliency = model.compute_jacobian(validation_data)
+
+    #Select the data of interest.
+    saliency_data = data.loc[data['diagnosis'] == 1][['participant_id','diagnosis']]
+    jacobian_data = saliency_data.copy()
+    
+    #Add the r indices
+    for i in range(model.opt.npattern):
+        r = 'r'+str(i+1)
+        saliency_data[r] = r_indices[:,i]
+        jacobian_data[r] = r_indices[:,i]
+
+    #Add the saliency scores
+    for j in range(jacobian.shape[2]): 
+        for i in range(model.opt.npattern):
+            saliency_data[f'roi_{j}_wrt_z{i}'] = saliency[:, i, j]
+            jacobian_data[f'roi_{j}_wrt_z{i}'] = jacobian[:, i, j]
+
+    saliency_data.to_csv(save_saliency, index = False)
+    
+    if not save_jacobian is None:
+        jacobian_data.to_csv(save_jacobian, index = False)
 
 def apply_saved_model(model_dir, data, epoch, covariate=None):
     """
@@ -35,10 +87,20 @@ def apply_saved_model(model_dir, data, epoch, covariate=None):
     data = data[data['diagnosis']==1]
     if covariate is not None:
         covariate = covariate[covariate['diagnosis']==1]
+
     model = SurrealGAN()
-    model.load(model_dir, epoch)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.load(model_dir, epoch, device)
+
     model.get_corr()
-    validation_data = parse_validation_data(data, covariate,model.opt.correction_variables,model.opt.normalization_variables)
+    validation_data = parse_validation_data(
+        data, 
+        covariate,
+        model.opt.correction_variables,
+        model.opt.normalization_variables
+    ).to_device()
+
     model.predict_rindices(validation_data)
     return model.predict_rindices(validation_data)
 
@@ -60,15 +122,23 @@ def representation_result(output_dir, npattern, data, final_saving_epoch, saving
         if agreement_f['epoch'].max() < final_saving_epoch and (not (agreement_f['stop'] == 'yes').any()):
             raise Exception("Waiting for other repetitions to finish to derive the final R-indices")
         best_row = agreement_f.iloc[agreement_f['Rindices_corr'].idxmax()]
-        if repetition >= 10:
-            max_index = best_row['best_model']
-            best_model_dir = os.path.join(output_dir, 'model'+str(max_index))
-            model = SurrealGAN()
-            model.load(best_model_dir,best_row['epoch'])
-            validation_data = parse_validation_data(data, covariate,model.opt.correction_variables,model.opt.normalization_variables)[1]
-            r_indices = model.predict_rindices(validation_data) 
-        else:
-            raise Exception("At least 10 trained models are required (repetition number need to be at least 10)")
+
+        max_index = best_row['best_model']
+        best_model_dir = os.path.join(output_dir, 'model'+str(max_index))
+
+        model = SurrealGAN()
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.load(best_model_dir,best_row['epoch'], device)
+        
+        validation_data = parse_validation_data(
+            data, 
+            covariate,
+            model.opt.correction_variables,
+            model.opt.normalization_variables
+        )[1].to(device)
+
+        r_indices = model.predict_rindices(validation_data) 
     else:
         raise Exception("Waiting for other repetitions to finish to derive the final R-indices")
     return np.array(r_indices), best_row['best_dimension_corr'], best_row['best_difference_corr'],  best_row['dimension_corr'], best_row['difference_corr'], best_row['epoch'], best_model_dir
@@ -80,11 +150,14 @@ def save_model_results(output_dir, npattern, data, final_saving_epoch, saving_fr
 
     for i in range(npattern):
         pt_data['r'+str(i+1)] = r_indices[:,i]
-
-    pt_data["Rindices-corr" ] = ["%.3f" %((dimension_corr+difference_corr)/2)]+['' for _ in range(r_indices.shape[0]-1)]
+    
+    
+    r_indices_corr = dimension_corr if difference_corr == 1.0 else (dimension_corr + difference_corr) / 2
+    seleced_r_indices_corr = selected_model_dimension_corr if selected_model_difference_corr == 1 else (selected_model_dimension_corr+selected_model_difference_corr)/2
+    pt_data["Rindices-corr" ] = ["%.3f" %(r_indices_corr)]+['' for _ in range(r_indices.shape[0]-1)]
     pt_data["best epoch" ] = [best_epoch]+['' for _ in range(r_indices.shape[0]-1)]
     pt_data["path to selected model"] = [selected_model_dir]+['' for _ in range(r_indices.shape[0]-1)]
-    pt_data["selected model Rindices-corr"] = ["%.3f" %((selected_model_dimension_corr+selected_model_difference_corr)/2)]+['' for _ in range(r_indices.shape[0]-1)]
+    pt_data["selected model Rindices-corr"] = ["%.3f" %(seleced_r_indices_corr)]+['' for _ in range(r_indices.shape[0]-1)]
     pt_data["dimension-corr" ] = ["%.3f" %(dimension_corr)]+['' for _ in range(r_indices.shape[0]-1)]
     pt_data["difference-corr" ] = ["%.3f" %(difference_corr)]+['' for _ in range(r_indices.shape[0]-1)]
     pt_data["selected model dimension-corr"] = ["%.3f" %(selected_model_dimension_corr)]+['' for _ in range(r_indices.shape[0]-1)]

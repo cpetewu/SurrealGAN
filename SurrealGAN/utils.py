@@ -112,14 +112,17 @@ def apply_saved_model(model_dir, data, epoch, covariate=None):
     Returns: R-indices
 
     """
-
     data = data[data['diagnosis']==1]
     if covariate is not None:
         covariate = covariate[covariate['diagnosis']==1]
+
     model = SurrealGAN()
-    model.load(model_dir, epoch)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model.load(model_dir, epoch, device)
     model.get_corr()
-    validation_data = parse_validation_data(data, covariate,model.opt.correction_variables,model.opt.normalization_variables)
+
+    validation_data = parse_validation_data(data, covariate,model.opt.correction_variables,model.opt.normalization_variables).to(device)
     model.predict_rindices(validation_data)
     return model.predict_rindices(validation_data)
 

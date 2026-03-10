@@ -217,11 +217,12 @@ class Surreal_GAN_train():
 
         if not verbose:
             pbar = tqdm(total = self.opt.final_saving_epoch + 2000)
+
+        start_time = time.time()
         for epoch in range(1, self.opt.final_saving_epoch + 2001):
             if not verbose:
                 pbar.update(1)
 
-            epoch_start_time = time.time()
             epoch_iter = 0
             for i, pt_data in enumerate(pt_train_dataset):
                 cn_data = cn_train_dataset.next()
@@ -239,7 +240,6 @@ class Surreal_GAN_train():
                         print_start_time = time.time()
         
             if epoch % self.opt.eval_freq == 0:
-                t = time.time()
 
                 loss_names = ['loss_recons','loss_mono']
                 for _ in range(2):
@@ -248,8 +248,7 @@ class Surreal_GAN_train():
                 for _ in range(2):
                     criterion_loss_list[_].pop(0)
 
-                t = time.time() - t
-                res_str_list = ["[%d], TIME: %.4f" % (epoch, t)]
+                res_str_list = ["[%d], TIME: %.4f" % (epoch, (time.time() - start_time))]
                 
                 if max(criterion_loss_list[0]) < self.opt.recons_loss_threshold \
                         and max(criterion_loss_list[1]) < self.opt.mono_loss_threshold \
