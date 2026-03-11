@@ -166,7 +166,7 @@ def save_model_results(output_dir, npattern, data, final_saving_epoch, saving_fr
     pt_data.to_csv(os.path.join(output_dir,'representation_result.csv'), index = False)
 
 #Add training params section
-def repetitive_representation_learning(architecture, data, covariate, repetition, fraction, final_saving_epoch, batchsize, saving_freq, eval_freq,  start_repetition, stop_repetition, output_dir, verbose = False):
+def repetitive_representation_learning(architecture, data, covariate, repetition, fraction, final_saving_epoch, batchsize, saving_freq, eval_freq,  start_repetition, stop_repetition, output_dir, verbose = False, no_repeat = False):
     """
     Args:
         architecture: str, the path to the JSON file specifying the network structure and parameters.
@@ -224,7 +224,7 @@ def repetitive_representation_learning(architecture, data, covariate, repetition
             verbose,
             i
         )
-        while not converge:
+        while not (no_repeat or converge):
             seed = int(datetime.now().timestamp())
             print("****** Model not converged at max interation, Start retraining seed: " + str(seed) + " ******")
             converge = Surreal_GAN_model.train(
